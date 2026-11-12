@@ -1,0 +1,33 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# Test / lint / type-check caches
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Secrets
+.env
+.env.*
+
+# Personal editor settings
+.vscode/
+.idea/
+*.swp
+
+# Temporary files created by the script (tempfile.mkstemp)
+.rules.*.tmp
+usb-udev-namer.*.rules

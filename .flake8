@@ -1,0 +1,8 @@
+[flake8]
+max-line-length = 120
+inline-quotes = double
+docstring-convention = pep257
+per-file-ignores =
+    tests/*: D
+import-order-style = pep8
+application-import-names = usb_udev_namer, conftest
