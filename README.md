@@ -1,142 +1,153 @@
 # usb_udev_namer
 
-幫 USB 序列裝置(`ttyUSB*`、`ttyACM*`)取一個固定名稱的工具,例如 `/dev/usb_imu`。
+A tool that gives USB serial devices (`ttyUSB*`, `ttyACM*`) a fixed name, such as `/dev/usb_imu`.
 
-Linux 給 USB 序列裝置的 `/dev/ttyUSB0`、`/dev/ttyUSB1` 取決於插入順序,一換孔、一重插就可能對調。
-正規解法是寫 udev 規則建 symlink;本工具用互動選單幫你寫好、套用並當場驗證,不用懂 udev 語法:
+Linux assigns `/dev/ttyUSB0`, `/dev/ttyUSB1` to USB serial devices by plug-in order, so they can swap whenever you
+change ports or re-plug. The proper fix is a udev rule that creates a symlink; this tool writes the rule, applies it
+and verifies it on the spot through an interactive menu, so you do not need to know udev syntax:
 
-插上裝置 → 從清單選它 → 輸入名稱 → 畫面直接顯示 `/dev/<名稱> -> ttyUSB0`
+Plug in the device → pick it from the list → type a name → the screen shows `/dev/<name> -> ttyUSB0`
 
-## 需求
+## Requirements
 
-- Linux 或 WSL2(macOS 沒有 udev,不適用;直接用 `/dev/cu.usbserial*`)
-- Python 3.8 以上(只用標準函式庫,不需 `pip install`)
-- 有 `sudo` 權限(寫入 `/etc/udev/rules.d/` 需要)
-- WSL2:裝置要先用 [wsl_usb_auto](https://github.com/alianlbj23/wsl_usb_auto) 掛進 WSL,本工具才看得到
+- Linux or WSL2 (macOS has no udev, so this does not apply; use `/dev/cu.usbserial*` directly)
+- Python 3.8 or later (standard library only, no `pip install` needed)
+- `sudo` permission (needed to write to `/etc/udev/rules.d/`)
+- WSL2: the device must first be attached to WSL with [wsl_usb_auto](https://github.com/alianlbj23/wsl_usb_auto),
+  otherwise this tool cannot see it
 
-## 安裝
+## Installation
 
-把 `usb_udev_namer.py` 放到任意位置即可,不需額外安裝。
+Put `usb_udev_namer.py` anywhere you like; nothing else needs to be installed.
 
-## 使用方式
+## Usage
 
-### 互動選單(最簡單)
+### Interactive menu (simplest)
 
-不加參數直接執行就會出現選單:
+Run it without arguments and the menu appears:
 
 ```bash
 python3 usb_udev_namer.py
 ```
 
 ```
-========== USB 裝置固定名稱 (udev) ==========
-目前名稱:1 個(usb_imu -> ttyUSB0)
-快捷指令:usbname
-  1. 幫裝置取名稱
-  2. 查看所有名稱(含健康檢查)
-  3. 刪除名稱
-  4. 重新套用規則(重插後名稱沒出現時用)
-  5. 查看目前插著的 USB 序列裝置
-  6. 設定快捷指令(之後打 usbname 就能開選單)
-  7. 移除快捷指令
-  8. 全部清除(移除規則檔與所有設定)
-  0. 離開
-請選擇 [0-8]:
+========== USB device fixed names (udev) ==========
+Names: 1 (usb_imu -> ttyUSB0)
+Shortcut: usbname
+  1. Name a device
+  2. Show all names (with health check)
+  3. Delete a name
+  4. Re-apply the rules (use when a name is missing after re-plugging)
+  5. Show the USB serial devices currently plugged in
+  6. Set a shortcut command (then type usbname to open this menu)
+  7. Remove the shortcut command
+  8. Remove everything (the rules file and all settings)
+  0. Quit
+Choose [0-8]:
 ```
 
-選「1. 幫裝置取名稱」的流程:
+The flow of "1. Name a device":
 
 ```
-目前插著的 USB 序列裝置:
-  1. /dev/ttyUSB0  10c4:ea60  Silicon Labs CP2102 USB to UART Bridge Controller  序號 0001  埠 1-3.2
-請選擇裝置 [1-1](0 返回):1
-輸入名稱(之後會出現在 /dev/ 底下,例如 usb_imu;直接 Enter 取消):usb_imu
+USB serial devices currently plugged in:
+  1. /dev/ttyUSB0  10c4:ea60  Silicon Labs CP2102 USB to UART Bridge Controller  serial 0001  port 1-3.2
+Choose a device [1-1] (0 to go back): 1
+Enter a name (it will appear under /dev/, e.g. usb_imu; press Enter to cancel): usb_imu
 
-辨識方式:VID:PID 10c4:ea60 + 序號 0001。插哪個 USB 孔都可以。
-要改用實體 USB 埠辨識嗎?(換孔就要重新取名)[y/N]
-將寫入 /etc/udev/rules.d/99-usb-udev-namer.rules(需要 sudo)。繼續?[y/N] y
+Identified by: VID:PID 10c4:ea60 + serial 0001. Any USB port works.
+Identify by physical USB port instead? (you must rename after moving to another port) [y/N]
+This will write /etc/udev/rules.d/99-usb-udev-namer.rules (requires sudo). Continue? [y/N] y
 [sudo] password for user:
-套用中...
+Applying...
 lrwxrwxrwx 1 root root 7 Nov 11 10:00 /dev/usb_imu -> ttyUSB0
 ```
 
-選單裡的「設定快捷指令」會在 `.bashrc` 加一個 alias(預設 `usbname`),之後打 `usbname` 就能開啟選單。
+"Set a shortcut command" in the menu adds an alias to `.bashrc` (`usbname` by default); after that, typing `usbname`
+opens the menu.
 
-### 指令模式(給腳本用;選單都做得到,不用記)
+### Command mode (for scripts; the menu can do all of it, no need to memorise)
 
-| 指令 | 說明 |
-|------|------|
-| `python3 usb_udev_namer.py scan` | 列出目前插著的 USB 序列裝置 |
-| `python3 usb_udev_namer.py add /dev/ttyUSB0 -n usb_imu` | 幫裝置取名稱,可加 `--by auto\|serial\|port` 強制辨識方式 |
-| `python3 usb_udev_namer.py list` | 列出所有名稱與健康檢查 |
-| `python3 usb_udev_namer.py remove usb_imu` | 刪除名稱 |
-| `python3 usb_udev_namer.py apply` | 依紀錄重新產生並套用規則 |
-| `python3 usb_udev_namer.py uninstall` | 刪除規則檔、所有設定與 `.bashrc` 區塊(會確認兩次) |
+| Command | Description |
+|---------|-------------|
+| `python3 usb_udev_namer.py scan` | List the USB serial devices currently plugged in |
+| `python3 usb_udev_namer.py add /dev/ttyUSB0 -n usb_imu` | Name a device; add `--by auto\|serial\|port` to force the identification method |
+| `python3 usb_udev_namer.py list` | List all names with the health check |
+| `python3 usb_udev_namer.py remove usb_imu` | Delete a name |
+| `python3 usb_udev_namer.py apply` | Regenerate the rules from the records and apply them |
+| `python3 usb_udev_namer.py uninstall` | Delete the rules file, all settings and the `.bashrc` block (asks twice) |
 
-`add` 在名稱沒有出現時會以結束代碼 1 結束,方便腳本判斷。
+`add` exits with code 1 when the name does not appear, so scripts can detect it.
 
-## 裝置辨識方式
+## How devices are identified
 
-電腦能區分兩個 USB 裝置的資訊只有三樣:VID:PID、序號、實體 USB 埠。工具會自動選擇:
+A computer has only three pieces of information to tell two USB devices apart: VID:PID, serial number and physical
+USB port. The tool chooses automatically:
 
-| 情況 | 用什麼辨識 | 使用上 |
-|------|-----------|--------|
-| 有序號,且「VID:PID + 序號」在目前插著的裝置中唯一 | VID:PID + 序號 | 插哪個孔都可以 |
-| 沒有序號,或和另一個插著的裝置完全相同 | 實體 USB 埠 + VID:PID | 要固定插同一個孔,換孔要重新取名 |
+| Situation | Identified by | In practice |
+|-----------|---------------|-------------|
+| It has a serial, and "VID:PID + serial" is unique among the devices currently plugged in | VID:PID + serial | Any port works |
+| It has no serial, or is identical to another plugged-in device | Physical USB port + VID:PID | Always use the same port; rename after moving to another port |
 
-所以**同款裝置有兩個以上時,取名時請全部插著**,工具才看得出它們序號相同、自動改用實體埠。
-不提供「只用 VID:PID」:之後插入同款晶片時會悄悄撞名。
+So **when you have two or more devices of the same model, plug all of them in while naming**; only then can the tool
+see that their serials are identical and switch to the physical port automatically.
+"VID:PID only" is not offered: a later device with the same chip would silently collide with the name.
 
-## 運作方式
+## How it works
 
-1. 名稱紀錄在 `~/.config/usb-udev-namer/rules.json`(唯一真實來源)。
-2. 每次變更後,整個重新產生 `/etc/udev/rules.d/99-usb-udev-namer.rules`,例如:
+1. Names are recorded in `~/.config/usb-udev-namer/rules.json` (the single source of truth).
+2. After every change, `/etc/udev/rules.d/99-usb-udev-namer.rules` is regenerated in full, for example:
 
    ```
    SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="0001", SYMLINK+="usb_imu", MODE="0666"
    SUBSYSTEM=="tty", KERNELS=="1-3.4", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="usb_esp32", MODE="0666"
    ```
 
-3. 套用:`sudo cp` → `sudo udevadm control --reload-rules` → `sudo udevadm trigger --subsystem-match=tty --action=add`,
-   最多等 3 秒看 `/dev/<名稱>` 出現並印出 `ls -l`。sudo 或 udevadm 失敗時 `rules.json` 不會更新。
-4. `MODE="0666"` 讓所有使用者都能讀寫,省去加入 dialout 群組與重新登入;要收緊權限改程式裡的 `MODE` 常數。
-5. 本工具只動自己產生的那個規則檔,不碰 `/etc/udev/rules.d/` 裡的其他檔案。
+3. Applying: `sudo cp` → `sudo udevadm control --reload-rules` → `sudo udevadm trigger --subsystem-match=tty --action=add`,
+   then it waits up to 3 seconds for `/dev/<name>` to appear and prints `ls -l`. If sudo or udevadm fails,
+   `rules.json` is not updated.
+4. `MODE="0666"` lets every user read and write, which avoids joining the dialout group and logging in again; to
+   tighten permissions, change the `MODE` constant in the script.
+5. The tool only touches the one rules file it generates, never the other files in `/etc/udev/rules.d/`.
 
-## 相關檔案
+## Related files
 
-| 路徑 | 用途 |
-|------|------|
-| `~/.config/usb-udev-namer/rules.json` | 名稱紀錄 |
-| `/etc/udev/rules.d/99-usb-udev-namer.rules` | 由工具產生的 udev 規則(請勿手改) |
-| `~/.bashrc` | 快捷指令 alias(以 `# >>> usb-udev-namer >>>` 標記包起來,`uninstall` 可乾淨移除) |
+| Path | Purpose |
+|------|---------|
+| `~/.config/usb-udev-namer/rules.json` | Name records |
+| `/etc/udev/rules.d/99-usb-udev-namer.rules` | udev rules generated by the tool (do not edit by hand) |
+| `~/.bashrc` | Shortcut alias (wrapped in `# >>> usb-udev-namer >>>` markers, so `uninstall` can remove it cleanly) |
 
-## 常見問題
+## Troubleshooting
 
-- **名稱沒有出現**:選「4. 重新套用規則」。若仍沒有,選「2. 查看所有名稱」看健康檢查。
-- **WSL 上名稱一直不出現**:WSL 預設可能沒有啟動 udev 服務,執行 `sudo service udev restart` 後再選 4。
-  長期解法是在 `/etc/wsl.conf` 加入:
+- **The name does not appear**: choose "4. Re-apply the rules". If it still does not, choose "2. Show all names" and
+  read the health check.
+- **The name never appears on WSL**: WSL may not start the udev service by default; run `sudo service udev restart`
+  and choose 4 again. The permanent fix is to add this to `/etc/wsl.conf`:
 
   ```ini
   [boot]
   systemd=true
   ```
 
-  再於 Windows 執行 `wsl --shutdown` 重開 WSL。
-- **健康檢查顯示「符合 2 個裝置」**:兩個裝置的 VID:PID 與序號完全相同(取名時只插了一個)。
-  選 3 刪除該名稱,把兩個裝置都插上再重新取名,工具會自動改用實體埠。
-- **換了 USB 孔名稱就不見**:該名稱是用實體埠辨識的,請插回原本的孔,或重新取名。
-- **sudo 驗證失敗**:密碼錯誤或帳號沒有 sudo 權限;此時不會做任何變更。
+  then run `wsl --shutdown` on Windows to restart WSL.
+- **The health check says "matches 2 devices"**: the two devices have identical VID:PID and serial (only one was
+  plugged in while naming). Choose 3 to delete that name, plug both devices in and name it again; the tool will switch
+  to the physical port automatically.
+- **The name disappears after moving to another USB port**: that name is identified by physical port; plug the device
+  back into the original port, or name it again.
+- **sudo authentication failed**: wrong password, or the account has no sudo permission; nothing is changed in this
+  case.
 
-## 測試
+## Tests
 
 ```bash
 python3 -m pytest tests -q
 python3 -m flake8 usb_udev_namer.py tests
 ```
 
-測試不需要 root,也不需要真實裝置:sysfs 用暫存目錄模擬,外部指令以假物件取代。
+The tests need neither root nor real devices: sysfs is simulated with a temporary directory, and external commands
+are replaced with fake objects.
 
-## 授權
+## License
 
 Apache-2.0
-# usb_udev_namer

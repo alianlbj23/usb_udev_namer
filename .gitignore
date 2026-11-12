@@ -2,11 +2,11 @@
 __pycache__/
 *.py[cod]
 
-# 虛擬環境
+# Virtual environments
 .venv/
 venv/
 
-# 測試 / lint / 型別檢查快取
+# Test / lint / type-check caches
 .pytest_cache/
 .coverage
 .coverage.*
@@ -14,20 +14,20 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
-# 打包產物
+# Build artifacts
 build/
 dist/
 *.egg-info/
 
-# 機密設定
+# Secrets
 .env
 .env.*
 
-# 編輯器個人設定
+# Personal editor settings
 .vscode/
 .idea/
 *.swp
 
-# 腳本產生的暫存檔(tempfile.mkstemp)
+# Temporary files created by the script (tempfile.mkstemp)
 .rules.*.tmp
 usb-udev-namer.*.rules
